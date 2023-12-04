@@ -27,6 +27,10 @@ build:
 # More info: https://www.okteto.com/docs/reference/manifest/#deploy
 deploy:
   commands:
+    - name: Debug
+      command: |
+        echo "Debugging API deployment..."
+        env | grep OKTETO
     - name: Deploy API
       command: helm upgrade --install api ./chart --set image=${OKTETO_BUILD_API_IMAGE} --set load=${API_LOAD_DATA:-true}
 
