@@ -1,83 +1,135 @@
-icon: https://apps.okteto.com/movies/icon.png
+name: movies
 
+# The build section defines how to build the images of your development environment
+# More info: https://www.okteto.com/docs/reference/manifest/#build
 build:
-  frontend:
-    context: frontend
-  frontend-dev:
-    context: frontend
-    target: dev
+
+  # You can use the following env vars to refer to this image in your deploy commands:
+  #  - OKTETO_BUILD_CATALOG_REGISTRY: image registry
+  #  - OKTETO_BUILD_CATALOG_REPOSITORY: image repo
+  #  - OKTETO_BUILD_CATALOG_IMAGE: image name
+  #  - OKTETO_BUILD_CATALOG_SHA: image tag sha256
   catalog:
     context: catalog
+    dockerfile: Dockerfile
+
+  # You can use the following env vars to refer to this image in your deploy commands:
+  #  - OKTETO_BUILD_FRONTEND_REGISTRY: image registry
+  #  - OKTETO_BUILD_FRONTEND_REPOSITORY: image repo
+  #  - OKTETO_BUILD_FRONTEND_IMAGE: image name
+  #  - OKTETO_BUILD_FRONTEND_SHA: image tag sha256
+  frontend:
+    context: frontend
+    dockerfile: Dockerfile
+
+  # You can use the following env vars to refer to this image in your deploy commands:
+  #  - OKTETO_BUILD_FRONTEND_DEV_REGISTRY: image registry
+  #  - OKTETO_BUILD_FRONTEND_DEV_REPOSITORY: image repo
+  #  - OKTETO_BUILD_FRONTEND_DEV_IMAGE: image name
+  #  - OKTETO_BUILD_FRONTEND_DEV_SHA: image tag sha256
+  frontend-dev:
+    context: frontend
+    dockerfile: Dockerfile
+    target: dev
+
+  # You can use the following env vars to refer to this image in your deploy commands:
+  #  - OKTETO_BUILD_RENT_REGISTRY: image registry
+  #  - OKTETO_BUILD_RENT_REPOSITORY: image repo
+  #  - OKTETO_BUILD_RENT_IMAGE: image name
+  #  - OKTETO_BUILD_RENT_SHA: image tag sha256
   rent:
     context: rent
-  api:
-    context: api
-  api-dev:
-    context: api
-    target: dev
+    dockerfile: Dockerfile
+
+  # You can use the following env vars to refer to this image in your deploy commands:
+  #  - OKTETO_BUILD_WORKER_REGISTRY: image registry
+  #  - OKTETO_BUILD_WORKER_REPOSITORY: image repo
+  #  - OKTETO_BUILD_WORKER_IMAGE: image name
+  #  - OKTETO_BUILD_WORKER_SHA: image tag sha256
   worker:
     context: worker
+    dockerfile: Dockerfile
+
+  # You can use the following env vars to refer to this image in your deploy commands:
+  #  - OKTETO_BUILD_WORKER_DEV_REGISTRY: image registry
+  #  - OKTETO_BUILD_WORKER_DEV_REPOSITORY: image repo
+  #  - OKTETO_BUILD_WORKER_DEV_IMAGE: image name
+  #  - OKTETO_BUILD_WORKER_DEV_SHA: image tag sha256
   worker-dev:
     context: worker
+    dockerfile: Dockerfile
     target: dev
 
+# The deploy section defines how to deploy your development environment
+# More info: https://www.okteto.com/docs/reference/manifest/#deploy
 deploy:
-  - name: Deploy PostgreSQL
-    command: helm upgrade --install postgresql postgresql/postgresql-11.6.21.tgz -f postgresql/values.yml --version 11.6.21
-  - name: Deploy Kafka
-    command:  helm upgrade --install kafka kafka/kafka-18.0.3.tgz -f kafka/values.yml --version 18.0.3
-  - name: Deploy MongoDB
-    command:  helm upgrade --install mongodb mongodb/mongodb-12.1.30.tgz -f mongodb/values.yml --version 12.1.30
-  - name: Deploy Frontend
-    command: helm upgrade --install frontend frontend/chart --set image=${OKTETO_BUILD_FRONTEND_IMAGE}
-  - name: Deploy Catalog
-    command: helm upgrade --install catalog catalog/chart --set image=${OKTETO_BUILD_CATALOG_IMAGE}
-  - name: Deploy Rent
-    command: helm upgrade --install rent rent/chart --set image=${OKTETO_BUILD_RENT_IMAGE}
-  - name: Deploy Worker
-    command: helm upgrade --install worker worker/chart --set image=${OKTETO_BUILD_WORKER_IMAGE}
-  - name: Deploy API
-    command: helm upgrade --install api api/chart --set image=${OKTETO_BUILD_API_IMAGE} --set load=${API_LOAD_DATA:-true}
+  commands:
+    - name: Deploy PostgreSQL
+      command: helm upgrade --install postgresql postgresql/postgresql-11.6.21.tgz -f postgresql/values.yml --version 11.6.21
+    - name: Deploy Kafka
+      command: helm upgrade --install kafka kafka/kafka-18.0.3.tgz -f kafka/values.yml --version 18.0.3
+    - name: Deploy MongoDB
+      command: helm upgrade --install mongodb mongodb/mongodb-12.1.30.tgz -f mongodb/values.yml --version 12.1.30
+    - name: Deploy Frontend
+      command: helm upgrade --install frontend frontend/chart --set image=${OKTETO_BUILD_FRONTEND_IMAGE}
+    - name: Deploy Catalog
+      command: helm upgrade --install catalog catalog/chart --set image=${OKTETO_BUILD_CATALOG_IMAGE}
+    - name: Deploy Rent
+      command: helm upgrade --install rent rent/chart --set image=${OKTETO_BUILD_RENT_IMAGE}
+    - name: Deploy Worker
+      command: helm upgrade --install worker worker/chart --set image=${OKTETO_BUILD_WORKER_IMAGE}
 
+# The dependencies section defines other git repositories to be deployed as part of your development environment
+# More info: https://www.okteto.com/docs/reference/manifest/#dependencies
+# dependencies:
+#   - https://github.com/okteto/sample
+
+
+# The dev section defines how to activate a development container
+# More info: https://www.okteto.com/docs/reference/manifest/#dev
 dev:
+  catalog:
+    mode: sync
+    command:
+      - sh
+      - -c
+      - yarn start
+    forward:
+      - 9229:9229
+    sync:
+      - catalog:/src
   frontend:
-    image: ${OKTETO_BUILD_FRONTEND_DEV_IMAGE}
+    image: registry.andreadebug.dev.okteto.net/andrea/movies-frontend-dev@sha256:0f4665ca89faf7cfbe679426dbca04973f8c7e813e61f115c7f0aa3f8745cc34
+    mode: sync
     command: bash
     sync:
       - frontend:/usr/src/app
-  catalog:
-    command: yarn start
-    sync:
-      - catalog:/src
-    forward:
-      - 9229:9229
   rent:
-    command: mvn spring-boot:run
-    sync:
-      - rent:/app
-    volumes:
-      - /root/.m2
+    mode: sync
+    command:
+      - sh
+      - -c
+      - mvn spring-boot:run
     forward:
       - 5005:5005
-  api:
-    image: ${OKTETO_BUILD_API_DEV_IMAGE}
-    command: bash
-    securityContext:
-      capabilities:
-        add:
-        - SYS_PTRACE
+    volumes:
+      - /root/.m2
     sync:
-      - api:/usr/src/app
-    forward:
-      - 2346:2345
+      - rent:/app
   worker:
-    image: ${OKTETO_BUILD_WORKER_DEV_IMAGE}
-    command: bash
     securityContext:
+      runAsUser: 0
+      runAsGroup: 0
+      fsGroup: 0
       capabilities:
         add:
-        - SYS_PTRACE
-    sync:
-      - worker:/usr/src/app
+          - SYS_PTRACE
+    image: registry.andreadebug.dev.okteto.net/andrea/movies-worker-dev@sha256:9dca4b137ac5274ac513a1f8e4e2c3c3c74d5df78712340acdfedf6f569a75c4
+    mode: sync
+    command: bash
     forward:
       - 2345:2345
+    sync:
+      - worker:/usr/src/app
+icon: https://apps.okteto.com/movies/icon.png
+
